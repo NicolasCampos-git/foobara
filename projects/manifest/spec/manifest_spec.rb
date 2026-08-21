@@ -56,6 +56,7 @@ RSpec.describe Foobara::Manifest do
         ratings [:integer], default: []
         junk :associative_array, value_type_declaration: :array
         address SomeOrg::SomeDomain::Types::Address
+        email :email
       end
 
       primary_key :id
@@ -111,12 +112,26 @@ RSpec.describe Foobara::Manifest do
       def execute
       end
     end
+
+    [
+      Foobara::CommandConnector::Commands::QueryGitCommitInfo,
+      Foobara::CommandConnector::Commands::ListCommands,
+      Foobara::CommandConnector::Commands::Describe,
+      Foobara::CommandConnector::Commands::Ping,
+      GlobalCommand,
+      CommandWithNoPossibleErrors,
+      SomeOrg::SomeDomain::QueryUser,
+      SomeOrg::SomeDomain::QueryReferral
+    ].each do |command_class|
+      command_connector.connect(command_class)
+    end
   end
 
   let(:manifest) { Foobara::Manifest::RootManifest.new(raw_manifest) }
+  let(:command_connector) { Foobara::CommandConnector.new }
   let(:raw_manifest) do
     Foobara::TypeDeclarations.with_manifest_context(include_processors: true) do
-      Foobara.manifest
+      command_connector.foobara_manifest
     end
   end
   let(:raw_stringified_manifest) { Foobara::Util.deep_stringify_keys(raw_manifest) }
@@ -181,7 +196,7 @@ RSpec.describe Foobara::Manifest do
     expect(entity.target_class).to eq("SomeOrg::SomeDomain::User")
     expect(entity.entity_manifest).to be_a(Hash)
     expect(entity.type_manifest).to be_a(Hash)
-    expect(entity.attribute_names).to contain_exactly("name", "ratings", "junk", "phone", "address")
+    expect(entity.attribute_names).to contain_exactly("name", "ratings", "junk", "phone", "address", "email")
 
     expect(manifest.types).to include(entity)
     expect(entity.organization.types).to include(entity)

@@ -2,6 +2,7 @@ require "foobara/type_declarations"
 
 require "date"
 require "time"
+# TODO: get this out of here
 require "bigdecimal"
 
 module Foobara

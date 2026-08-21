@@ -204,13 +204,19 @@ module Foobara
       end
     end
 
+    # Why are we calling this _name instead of _reference??
+    def create_exposed_domain_if_needed(full_domain_name)
+      foobara_lookup_domain(
+        full_domain_name,
+        mode: Namespace::LookupMode::ABSOLUTE_SINGLE_NAMESPACE
+      ) || build_and_register_exposed_domain(full_domain_name)
+    end
+
     private
 
     def create_exposed_command(command_class, **opts)
       full_domain_name = command_class.domain.scoped_full_name
-      exposed_domain = foobara_lookup_domain(full_domain_name,
-                                             mode: Namespace::LookupMode::ABSOLUTE_SINGLE_NAMESPACE) ||
-                       build_and_register_exposed_domain(full_domain_name)
+      exposed_domain = create_exposed_domain_if_needed(full_domain_name)
 
       if !opts.key?(:allowed_rule) && allow&.key?(command_class)
         opts = opts.merge(allowed_rule: allow[command_class])

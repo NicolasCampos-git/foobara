@@ -1,5 +1,3 @@
-require "singleton"
-
 module Foobara
   module Types
     class << self

@@ -66,8 +66,14 @@ module Foobara
                       unless o.foobara_root_namespace == command_registry
                         next
                       end
-                    elsif o.is_a?(::Class) && o < Foobara::Command
-                      next
+                    elsif o.is_a?(::Class)
+                      if o < Foobara::Command
+                        next
+                      elsif o < Foobara::Value::Processor
+                        full_domain_name = o.foobara_domain.scoped_full_name
+                        exposed_domain = command_registry.create_exposed_domain_if_needed(full_domain_name)
+                        additional_to_include << exposed_domain
+                      end
                     end
                   elsif o.is_a?(Types::Type)
                     if o.sensitive?
@@ -77,7 +83,6 @@ module Foobara
                             "Make sure these are not included."
                       # simplecov:enable
                     else
-
                       mode = Namespace::LookupMode::ABSOLUTE_SINGLE_NAMESPACE
                       domain_name = o.foobara_domain.scoped_full_name
 
@@ -154,26 +159,67 @@ module Foobara
           root_manifest = Manifest::RootManifest.new(manifest_hash)
 
           error_category = {}
+          reference_to_category = {}
+
+          # The only thing we can scope to an org is a domain so leaving :organization out
+          [
+            :command,
+            :domain,
+            :type,
+            :error,
+            :processor,
+            :processor_class
+          ].each do |category|
+            root_manifest.relevant_manifest[category]&.each_key do |key|
+              reference_to_category[key.to_s] = category
+            end
+          end
 
           root_manifest.errors.each do |error|
-            error_manifest = if (error.parent_category == :command || error.parent_category == :organization) &&
-                                !root_manifest.contains?(error.parent_name, error.parent_category)
-                               domain = error.domain
-                               index = domain.scoped_full_path.size
+            # TODO: let's deprecate parent_name and use parent_path instead.
+            error_manifest = if root_manifest.contains?(error.parent_name, error.parent_category) &&
+                                root_manifest.contains?(error[:domain], :domain) &&
+                                root_manifest.contains?(error.parent[:domain], :domain)
 
-                               fixed_scoped_path = error.scoped_full_path[index..]
-                               fixed_scoped_name = fixed_scoped_path.join("::")
+                               error.relevant_manifest
+                             else
+                               parent = nil
+
+                               fixed_scoped_path = error.scoped_path.dup
+                               parent_path = error.scoped_full_path[..-(fixed_scoped_path.size + 1)]
+
+                               loop do
+                                 fixed_scoped_path.unshift(parent_path.pop)
+                                 parent_name = parent_path.join("::")
+
+                                 if parent_path.empty?
+                                   parent = root_manifest.global_domain
+                                   break
+                                 elsif reference_to_category.include?(parent_name)
+                                   possible_parent = root_manifest.lookup(parent_name)
+
+                                   if root_manifest.contains?(possible_parent[:domain], :domain)
+                                     parent = possible_parent
+                                     break
+                                   end
+                                 end
+                               end
+
+                               fixed_parent = parent.manifest_path
+                               fixed_domain = parent[:domain]
+                               fixed_organization = parent[:organization]
+
                                fixed_scoped_prefix = fixed_scoped_path[..-2]
-                               fixed_parent = [:domain, domain.reference]
+                               fixed_scoped_name = fixed_scoped_path.join("::")
 
                                error.relevant_manifest.merge(
                                  parent: fixed_parent,
                                  scoped_path: fixed_scoped_path,
                                  scoped_name: fixed_scoped_name,
-                                 scoped_prefix: fixed_scoped_prefix
+                                 scoped_prefix: fixed_scoped_prefix,
+                                 domain: fixed_domain,
+                                 organization: fixed_organization
                                )
-                             else
-                               error.relevant_manifest
                              end
 
             error_category[error.scoped_full_name.to_sym] = error_manifest
