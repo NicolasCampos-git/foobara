@@ -1,3 +1,8 @@
+# [0.6.2] - 2026-08-24
+
+- Eliminate all direct uses of Foobara.manifest in the test suite and deprecate it
+- Fix bug preventing other combinations an Error missing parent/domain from getting fixed
+
 # [0.6.1] - 2026-08-08
 
 - Reduce gem size by excluding non-production code/artifacts from sub-projects
