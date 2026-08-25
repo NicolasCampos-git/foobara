@@ -1385,12 +1385,15 @@ And we can see the error in the command's list of possible errors:
 ```
 
 And of course, as expected, tooling has access to information about this error and the command's possible error through manifest
-metadata:
+metadata. Let's take a look at how it surfaces through a generic command connector:
 
 ```
-> Foobara.manifest[:command][:Divide][:possible_errors]["data.divisor.divide_by_zero"][:error]
+> require "foobara/command_connectors"
+> connector = Foobara::CommandConnector.new
+> connector.connect(Divide)
+> connector.foobara_manifest[:command][:Divide][:possible_errors]["data.divisor.divide_by_zero"][:error]
 ==> "Divide::DivideByZeroError"
-> Foobara.manifest[:error][:"Divide::DivideByZeroError"][:parent]
+> connector.foobara_manifest[:error][:"Divide::DivideByZeroError"][:parent]
 ==> [:command, "Divide"]
 ```
 
