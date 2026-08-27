@@ -448,7 +448,7 @@ module Foobara
           if data.key?(:defaults)
             defaults = data[:defaults]
 
-            if defaults.is_a?(::Hash) && defaults.values.any? { it.is_a?(Proc) }
+            if defaults.is_a?(::Hash) && defaults.values.any?(Proc)
               cleaned_defaults = defaults.transform_values do |value|
                 if value.is_a?(Proc)
                   "[<Lazily Set>]"
